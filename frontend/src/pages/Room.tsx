@@ -1,127 +1,138 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Receipt, MessageSquare, Upload } from "lucide-react";
-import RoomHeader from "@/components/room/RoomHeader";
-import MenuList from "@/components/room/MenuList";
-import ChatWindow from "@/components/room/ChatWindow";
-import PaymentProofList from "@/components/room/PaymentProofList";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Users, Receipt, LogOut } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+interface Room {
+  id: number;
+  title: string;
+  menu: string[];
+}
 
 const API_URL = "https://bill-splitter-backend-9b7b.onrender.com/api";
 
-const Room = () => {
-  const { roomId } = useParams();
+const Rooms: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("menu");
-  const [room, setRoom] = useState<{
-    id: number;
-    title: string;
-    menu: string[];
-  } | null>(null);
+  const { toast } = useToast();
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch room data
+  // Fetch all rooms
   useEffect(() => {
-    const fetchRoom = async () => {
-      if (!roomId) return;
-
+    const fetchRooms = async () => {
       try {
-        setIsLoading(true);
         const token = localStorage.getItem("token");
         if (!token) {
-          alert("Unauthorized. Please log in.");
+          toast({ title: "Unauthorized", description: "Please log in." });
           navigate("/login");
           return;
         }
 
-        const response = await fetch(`${API_URL}/rooms/${roomId}`, {
+        const response = await fetch(`${API_URL}/rooms`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
 
         if (!response.ok) {
-          throw new Error("Failed to fetch room data");
+          throw new Error("Failed to fetch rooms");
         }
 
         const data = await response.json();
-        setRoom(data.room);
+        setRooms(data.rooms);
       } catch (error) {
         console.error(error);
-        alert("Unable to load room details.");
-        navigate("/rooms");
+        toast({ title: "Error", description: "Unable to load rooms." });
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchRoom();
-  }, [roomId, navigate]);
-
-  if (isLoading) {
-    return <p className="text-center mt-8">Loading room...</p>;
-  }
-
-  if (!room) {
-    return <p className="text-center mt-8 text-red-500">Room not found.</p>;
-  }
+    fetchRooms();
+  }, [navigate, toast]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10 shadow-soft">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4 mb-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/rooms")}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </div>
-          {/* Pass room title to RoomHeader */}
-          <RoomHeader />
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-foreground">My Rooms</h1>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              localStorage.removeItem("token");
+              navigate("/login");
+            }}
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="space-y-6"
-        >
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid bg-card shadow-soft">
-            <TabsTrigger value="menu" className="gap-2">
-              <Receipt className="h-4 w-4" />
-              <span className="hidden sm:inline">Menu</span>
-            </TabsTrigger>
-            <TabsTrigger value="chat" className="gap-2">
-              <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">Chat</span>
-            </TabsTrigger>
-            <TabsTrigger value="proofs" className="gap-2">
-              <Upload className="h-4 w-4" />
-              <span className="hidden sm:inline">Payment Proofs</span>
-            </TabsTrigger>
-          </TabsList>
+        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+          <Button
+            className="gap-2"
+            size="lg"
+            onClick={() => navigate("/rooms/new")}
+          >
+            <Plus className="h-5 w-5" />
+            Create Room
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            size="lg"
+            onClick={() => navigate("/rooms/join")}
+          >
+            <Users className="h-5 w-5" />
+            Join Room
+          </Button>
+        </div>
 
-          <TabsContent value="menu">
-            {/* Pass menu items to MenuList */}
-            <MenuList  />
-          </TabsContent>
-
-          <TabsContent value="chat">
-            <ChatWindow roomId={room.id} />
-          </TabsContent>
-
-          <TabsContent value="proofs">
-            <PaymentProofList roomId={room.id} />
-          </TabsContent>
-        </Tabs>
+        {isLoading ? (
+          <p className="text-center text-muted-foreground">Loading rooms...</p>
+        ) : rooms.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {rooms.map((room) => (
+              <Card
+                key={room.id}
+                className="p-6 hover:shadow-lg cursor-pointer"
+                onClick={() => navigate(`/rooms/${room.id}`)}
+              >
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold">{room.title}</h3>
+                    <Badge variant="default">ACTIVE</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {room.menu.length} menu items
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Room ID: {room.id}
+                  </p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card className="p-12 text-center">
+            <Receipt className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No rooms yet</h3>
+            <p className="text-muted-foreground mb-4">
+              Create a room to start splitting bills with friends
+            </p>
+            <Button onClick={() => navigate("/rooms/new")}>
+              Create Your First Room
+            </Button>
+          </Card>
+        )}
       </main>
     </div>
   );
 };
 
-export default Room;
+export default Rooms;
