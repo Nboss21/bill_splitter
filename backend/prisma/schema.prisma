@@ -10,7 +10,81 @@ datasource db {
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
+  password  String
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Rooms this user created
+  roomsCreated Room[] @relation("RoomCreator")
+
+  // Messages sent by this user
+  messages Message[] @relation("UserMessages")
+
+  // Payment proofs uploaded by this user
+  proofs PaymentProof[] @relation("UserProofs")
+
+  // Rooms this user participates in (many-to-many)
+  participantIn Room[] @relation("RoomParticipants")
+}
+
+model Room {
+  id        String   @id @default(uuid())
+  title     String
+  createdAt DateTime @default(now())
+  status    RoomStatus @default(ACTIVE)
+
+  // Room creator
+  creatorId Int
+  creator   User @relation("RoomCreator", fields: [creatorId], references: [id])
+
+  // Menu items
+  menu MenuItem[]
+
+  // Messages in room
+  messages Message[] @relation("RoomMessages")
+
+  // Payment proofs in room
+  proofs PaymentProof[] @relation("RoomProofs")
+
+  // Participants (many-to-many)
+  participants User[] @relation("RoomParticipants")
+}
+
+
+model MenuItem {
+  id       String @id @default(uuid())
+  roomId   String
+  name     String
+  price    Float
+  photoUrl String?
+
+  room Room @relation(fields: [roomId], references: [id])
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  roomId    String
+  senderId  Int
+  text      String?
+  createdAt DateTime @default(now())
+
+  room   Room @relation("RoomMessages", fields: [roomId], references: [id])
+  sender User @relation("UserMessages", fields: [senderId], references: [id])
+}
+
+model PaymentProof {
+  id        String   @id @default(uuid())
+  roomId    String
+  senderId  Int
+  fileUrl   String
+  createdAt DateTime @default(now())
+
+  room   Room @relation("RoomProofs", fields: [roomId], references: [id])
+  sender User @relation("UserProofs", fields: [senderId], references: [id])
+}
+
+enum RoomStatus {
+  ACTIVE
+  COMPLETED
 }
