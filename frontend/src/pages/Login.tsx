@@ -7,24 +7,67 @@ import { Label } from "@/components/ui/label";
 import { Receipt } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+const API_URL = "https://bill-splitter-backend-9b7b.onrender.com/api";
+
+interface LoginResponse {
+  user: {
+    id: number;
+    email: string;
+    name: string;
+    createdAt: string;
+  };
+  token: string;
+}
+
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || "Invalid credentials");
+      }
+
+      const data: LoginResponse = await res.json();
+
+      // ✅ Store token and user info
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("userId", data.user.id.toString());
+      localStorage.setItem("userName", data.user.name);
+
       toast({
         title: "Login successful!",
-        description: "Welcome back.",
+        description: `Welcome back, ${data.user.name}!`,
       });
+
       navigate("/rooms");
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast({
+        title: "Login failed",
+        description: error.message || "Please check your email and password.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -37,7 +80,9 @@ const Login = () => {
             </div>
           </div>
           <h1 className="text-2xl font-bold text-foreground">Welcome Back</h1>
-          <p className="text-muted-foreground">Log in to continue to SplitEasy</p>
+          <p className="text-muted-foreground">
+            Log in to continue to SplitEasy
+          </p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -47,16 +92,20 @@ const Login = () => {
               id="email"
               type="email"
               placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"
               type="password"
               placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
             />
           </div>
@@ -73,7 +122,7 @@ const Login = () => {
 
         <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground">
-            Don't have an account?{" "}
+            Don’t have an account?{" "}
             <Link to="/signup" className="text-primary hover:underline">
               Sign up
             </Link>
