@@ -22,3 +22,4 @@ app.use("/api/proofs", proofRoutes);
 app.use("/api/messages", messageRoutes);
 
 export default app;
+
